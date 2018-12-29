@@ -104,3 +104,22 @@ class TestPull(ComponentTestBase):
         eq_(pull(['argv0', '--track-missing', '--pristine-tar']), 0)
         assert len(repo.get_commits()) == 1
         self._check_repo_state(cloned, 'master', ['master', 'pristine-tar', 'upstream'])
+
+    @RepoFixtures.quilt30()
+    def test_pull_redo_pq(self, repo):
+        """pull: Test the '--redo-pq' commandline option"""
+        # Clone the repo initially
+        dest = os.path.join(self._tmpdir, 'cloned_repo')
+        clone(['arg0', '--all', repo.path, dest])
+        cloned = ComponentTestGitRepository(dest)
+        # Create new commit in origin repo
+        with open(os.path.join(repo.path, 'new_file'), 'w'):
+            pass
+        repo.commit_dir('.', 'New commit in master', branch='master')
+        # Pull
+        os.chdir(cloned.path)
+        assert cloned.has_branch('patch-queue/master') is False
+        eq_(pull(['argv0', '--track-missing']), 0)
+        eq_(pull(['argv0', '--redo-pq']), 0)
+        eq_(len(cloned.get_commits(until='master')), 3)
+        assert cloned.has_branch('patch-queue/master') is True
